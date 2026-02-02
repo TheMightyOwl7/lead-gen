@@ -1,0 +1,16 @@
+# Core
+fastapi==0.109.0
+uvicorn[standard]==0.27.0
+python-dotenv==1.0.0
+
+# Google Places API
+googlemaps==4.10.0
+
+# Database - use 2.0.36+ for Python 3.13 compatibility
+sqlalchemy>=2.0.36
+
+# HTTP requests (for future website analysis)
+httpx==0.26.0
+
+# CORS for frontend
+python-multipart==0.0.6

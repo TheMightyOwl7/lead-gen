@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lead Generation Tool</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+
+<body>
+    <div class="app">
+        <!-- Header -->
+        <header class="header">
+            <div class="header-content">
+                <h1 class="logo">🎯 Lead Generator</h1>
+                <div class="api-usage" id="apiUsage">
+                    <span class="usage-label">API Calls:</span>
+                    <span class="usage-value" id="usageCount">--/--</span>
+                    <div class="usage-bar">
+                        <div class="usage-fill" id="usageFill"></div>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="main">
+            <!-- Search Panel -->
+            <section class="search-panel">
+                <h2 class="section-title">🔍 Search Businesses</h2>
+                <form id="searchForm" class="search-form">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="businessType">Business Type</label>
+                            <input type="text" id="businessType" placeholder="e.g., dentists, restaurants, plumbers"
+                                required>
+                        </div>
+                        <div class="form-group">
+                            <label for="location">Location</label>
+                            <input type="text" id="location" placeholder="e.g., Cape Town, South Africa" required>
+                        </div>
+                        <div class="form-group form-group-small">
+                            <label for="radius">Radius (km)</label>
+                            <input type="number" id="radius" value="10" min="1" max="50">
+                        </div>
+                        <div class="form-group form-group-small">
+                            <label for="maxResults">Max Results</label>
+                            <input type="number" id="maxResults" value="10" min="1" max="20"
+                                title="Limit results to save API calls">
+                        </div>
+                    </div>
+                    <button type="submit" class="btn btn-primary" id="searchBtn">
+                        <span class="btn-text">Search</span>
+                        <span class="btn-loading" style="display:none;">Searching...</span>
+                    </button>
+                </form>
+            </section>
+
+            <!-- Stats Bar -->
+            <section class="stats-bar" id="statsBar" style="display:none;">
+                <div class="stat-card">
+                    <span class="stat-value" id="statTotal">0</span>
+                    <span class="stat-label">Total Found</span>
+                </div>
+                <div class="stat-card">
+                    <span class="stat-value" id="statWithWebsite">0</span>
+                    <span class="stat-label">With Website</span>
+                </div>
+                <div class="stat-card">
+                    <span class="stat-value" id="statWithoutWebsite">0</span>
+                    <span class="stat-label">No Website</span>
+                </div>
+            </section>
+
+            <!-- Filters -->
+            <section class="filters" id="filtersSection" style="display:none;">
+                <div class="filter-group">
+                    <label>Filter:</label>
+                    <select id="websiteFilter">
+                        <option value="">All Businesses</option>
+                        <option value="true">Has Website</option>
+                        <option value="false">No Website (Hot Leads!)</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label>Min Rating:</label>
+                    <select id="ratingFilter">
+                        <option value="">Any Rating</option>
+                        <option value="4.5">4.5+ Stars</option>
+                        <option value="4">4+ Stars</option>
+                        <option value="3">3+ Stars</option>
+                    </select>
+                </div>
+                <button class="btn btn-secondary" id="exportBtn">
+                    📥 Export CSV
+                </button>
+            </section>
+
+            <!-- Results Table -->
+            <section class="results-section" id="resultsSection" style="display:none;">
+                <h2 class="section-title">📋 Results</h2>
+                <div class="table-container">
+                    <table class="results-table">
+                        <thead>
+                            <tr>
+                                <th>Business Name</th>
+                                <th>Rating</th>
+                                <th>Reviews</th>
+                                <th>Website</th>
+                                <th>Phone</th>
+                                <th>Address</th>
+                            </tr>
+                        </thead>
+                        <tbody id="resultsBody">
+                            <!-- Results will be inserted here -->
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- Empty State -->
+            <section class="empty-state" id="emptyState">
+                <div class="empty-icon">🏢</div>
+                <h3>Search for Businesses</h3>
+                <p>Enter a business type and location above to find potential leads.</p>
+            </section>
+
+            <!-- Error State -->
+            <section class="error-state" id="errorState" style="display:none;">
+                <div class="error-icon">⚠️</div>
+                <h3 id="errorTitle">Something went wrong</h3>
+                <p id="errorMessage"></p>
+            </section>
+        </main>
+    </div>
+
+    <script src="js/api.js"></script>
+    <script src="js/app.js"></script>
+</body>
+
+</html>
