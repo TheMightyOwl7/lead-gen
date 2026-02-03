@@ -1,11 +1,14 @@
 """Google Places API integration with usage tracking."""
 import googlemaps
+import logging
 from datetime import datetime
 from sqlalchemy.orm import Session
 import json
 
 from app.config import settings
 from app.database import APIUsage, Business, Search
+
+logger = logging.getLogger(__name__)
 
 
 class PlacesAPIError(Exception):
@@ -146,7 +149,9 @@ class PlacesService:
             # Get additional details for website and phone
             # Note: This costs an additional API call per place
             details = None
-            if current + 2 < limit:  # Only if we have room in the budget
+            # Refresh usage count from DB to avoid stale counter bug
+            current_usage, api_limit = self._check_api_limit()
+            if current_usage + 1 < api_limit:  # Only if we have room in the budget
                 try:
                     details_response = self.client.place(
                         place.get("place_id"),
@@ -154,9 +159,8 @@ class PlacesService:
                     )
                     details = details_response.get("result", {})
                     self._increment_api_usage(1)
-                    current += 1
-                except:
-                    pass  # Skip details if it fails
+                except Exception as e:
+                    logger.warning(f"Failed to get details for {place.get('name')}: {e}")
             
             # Create business record
             business = Business(

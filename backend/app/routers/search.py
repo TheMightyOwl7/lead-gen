@@ -7,12 +7,13 @@ backend_dir = Path(__file__).parent.parent.parent
 if str(backend_dir) not in sys.path:
     sys.path.insert(0, str(backend_dir))
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy.orm import Session
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import Optional
 
 from app.database import get_db, Search, Business
+from app.rate_limiter import rate_limiter
 from services.places_api import PlacesService, PlacesAPIError, APILimitExceeded
 
 router = APIRouter(prefix="/api/search", tags=["search"])
@@ -22,8 +23,8 @@ class SearchRequest(BaseModel):
     """Request model for business search."""
     query: str  # e.g., "dentists", "plumbers", "restaurants"
     location: str  # e.g., "Cape Town, South Africa"
-    radius_km: int = 10
-    max_results: int = 10  # Limit results to control API costs
+    radius_km: int = Field(default=10, ge=1, le=50, description="Radius in km (1-50)")
+    max_results: int = Field(default=10, ge=1, le=20, description="Max results (1-20)")
 
 
 class SearchResponse(BaseModel):
@@ -38,7 +39,7 @@ class SearchResponse(BaseModel):
 
 
 @router.post("", response_model=SearchResponse)
-def search_businesses(request: SearchRequest, db: Session = Depends(get_db)):
+def search_businesses(request: SearchRequest, req: Request, db: Session = Depends(get_db)):
     """
     Search for businesses in a location.
     
@@ -46,6 +47,9 @@ def search_businesses(request: SearchRequest, db: Session = Depends(get_db)):
     - **location**: Location to search (e.g., "Cape Town, South Africa", "New York, NY")
     - **radius_km**: Search radius in kilometers (default: 10)
     """
+    # Check rate limit before processing
+    rate_limiter.check(req)
+    
     try:
         service = PlacesService(db)
         results = service.search_businesses(

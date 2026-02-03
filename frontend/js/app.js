@@ -5,6 +5,8 @@
 // State
 let currentSearchId = null;
 let currentBusinesses = [];
+let currentPage = 0;
+const PAGE_SIZE = 10;
 
 // DOM Elements
 const searchForm = document.getElementById('searchForm');
@@ -37,8 +39,8 @@ async function init() {
 
     // Setup event listeners
     searchForm.addEventListener('submit', handleSearch);
-    websiteFilter.addEventListener('change', applyFilters);
-    ratingFilter.addEventListener('change', applyFilters);
+    websiteFilter.addEventListener('change', handleFilterChange);
+    ratingFilter.addEventListener('change', handleFilterChange);
     exportBtn.addEventListener('click', exportCSV);
 }
 
@@ -84,6 +86,7 @@ async function handleSearch(e) {
 
         currentSearchId = result.search_id;
         currentBusinesses = result.businesses;
+        currentPage = 0; // Reset to first page
 
         // Update UI
         showResults(result.businesses);
@@ -95,6 +98,45 @@ async function handleSearch(e) {
     } finally {
         setLoading(false);
     }
+}
+
+/**
+ * Get filtered businesses based on current filter selections
+ * (Shared function to eliminate duplicate filter logic)
+ */
+function getFilteredBusinesses() {
+    const websiteValue = websiteFilter.value;
+    const minRating = ratingFilter.value ? parseFloat(ratingFilter.value) : null;
+
+    let filtered = [...currentBusinesses];
+
+    if (websiteValue === 'true') {
+        filtered = filtered.filter(b => b.website);
+    } else if (websiteValue === 'false') {
+        filtered = filtered.filter(b => !b.website);
+    }
+
+    if (minRating) {
+        filtered = filtered.filter(b => b.rating && b.rating >= minRating);
+    }
+
+    return filtered;
+}
+
+/**
+ * Handle filter change - reset to page 0 and re-render
+ */
+function handleFilterChange() {
+    currentPage = 0;
+    applyFilters();
+}
+
+/**
+ * Apply filters and render current page
+ */
+function applyFilters() {
+    const filtered = getFilteredBusinesses();
+    renderPage(filtered);
 }
 
 /**
@@ -116,7 +158,66 @@ function showResults(businesses) {
     filtersSection.style.display = 'flex';
     resultsSection.style.display = 'block';
 
-    renderTable(businesses);
+    renderPage(businesses);
+}
+
+/**
+ * Render a page of businesses with pagination
+ */
+function renderPage(businesses) {
+    const totalPages = Math.ceil(businesses.length / PAGE_SIZE);
+    const start = currentPage * PAGE_SIZE;
+    const pageData = businesses.slice(start, start + PAGE_SIZE);
+
+    renderTable(pageData);
+    renderPaginationControls(businesses.length, totalPages);
+}
+
+/**
+ * Render pagination controls
+ */
+function renderPaginationControls(totalItems, totalPages) {
+    // Remove existing pagination if present
+    const existingPagination = document.getElementById('paginationControls');
+    if (existingPagination) {
+        existingPagination.remove();
+    }
+
+    // Don't show pagination if only one page
+    if (totalPages <= 1) return;
+
+    const paginationHtml = `
+        <div id="paginationControls" class="pagination">
+            <button class="btn btn-secondary pagination-btn" id="prevBtn" ${currentPage === 0 ? 'disabled' : ''}>
+                ← Previous
+            </button>
+            <span class="pagination-info">
+                Page ${currentPage + 1} of ${totalPages} (${totalItems} results)
+            </span>
+            <button class="btn btn-secondary pagination-btn" id="nextBtn" ${currentPage >= totalPages - 1 ? 'disabled' : ''}>
+                Next →
+            </button>
+        </div>
+    `;
+
+    // Insert after the table
+    const tableContainer = document.querySelector('.table-container');
+    tableContainer.insertAdjacentHTML('afterend', paginationHtml);
+
+    // Add event listeners
+    document.getElementById('prevBtn').addEventListener('click', () => {
+        if (currentPage > 0) {
+            currentPage--;
+            applyFilters();
+        }
+    });
+
+    document.getElementById('nextBtn').addEventListener('click', () => {
+        if (currentPage < totalPages - 1) {
+            currentPage++;
+            applyFilters();
+        }
+    });
 }
 
 /**
@@ -127,6 +228,11 @@ function renderTable(businesses) {
         <tr>
             <td>
                 <strong>${escapeHtml(b.name)}</strong>
+            </td>
+            <td>
+                <span class="lead-score ${getLeadScoreClass(b.lead_score)}">
+                    ${b.lead_score || 0}
+                </span>
             </td>
             <td>
                 ${b.rating ? `
@@ -157,6 +263,15 @@ function renderTable(businesses) {
 }
 
 /**
+ * Get CSS class for lead score badge
+ */
+function getLeadScoreClass(score) {
+    if (score >= 65) return 'score-hot';
+    if (score >= 35) return 'score-warm';
+    return 'score-cold';
+}
+
+/**
  * Update statistics display
  */
 function updateStats(businesses) {
@@ -170,52 +285,19 @@ function updateStats(businesses) {
 }
 
 /**
- * Apply filters to current results
- */
-function applyFilters() {
-    const websiteValue = websiteFilter.value;
-    const minRating = ratingFilter.value ? parseFloat(ratingFilter.value) : null;
-
-    let filtered = [...currentBusinesses];
-
-    if (websiteValue === 'true') {
-        filtered = filtered.filter(b => b.website);
-    } else if (websiteValue === 'false') {
-        filtered = filtered.filter(b => !b.website);
-    }
-
-    if (minRating) {
-        filtered = filtered.filter(b => b.rating && b.rating >= minRating);
-    }
-
-    renderTable(filtered);
-}
-
-/**
- * Export current results to CSV
+ * Export current results to CSV (uses shared filter function)
  */
 function exportCSV() {
     if (currentBusinesses.length === 0) return;
 
-    // Apply current filters
-    let businesses = [...currentBusinesses];
-    const websiteValue = websiteFilter.value;
-    const minRating = ratingFilter.value ? parseFloat(ratingFilter.value) : null;
-
-    if (websiteValue === 'true') {
-        businesses = businesses.filter(b => b.website);
-    } else if (websiteValue === 'false') {
-        businesses = businesses.filter(b => !b.website);
-    }
-
-    if (minRating) {
-        businesses = businesses.filter(b => b.rating && b.rating >= minRating);
-    }
+    // Use shared filter function
+    const businesses = getFilteredBusinesses();
 
     // Create CSV content
-    const headers = ['Name', 'Rating', 'Reviews', 'Website', 'Phone', 'Address'];
+    const headers = ['Name', 'Lead Score', 'Rating', 'Reviews', 'Website', 'Phone', 'Address'];
     const rows = businesses.map(b => [
         `"${(b.name || '').replace(/"/g, '""')}"`,
+        b.lead_score || 0,
         b.rating || '',
         b.review_count || '',
         `"${(b.website || '').replace(/"/g, '""')}"`,

@@ -1,6 +1,7 @@
 """FastAPI application entry point."""
 import sys
 from pathlib import Path
+from contextlib import asynccontextmanager
 
 # Add backend directory to path for imports
 backend_dir = Path(__file__).parent.parent
@@ -15,19 +16,50 @@ from app.database import init_db
 from app.config import settings
 from app.routers import search, businesses
 
-# Initialize FastAPI app
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Application lifespan - runs on startup and shutdown."""
+    # Startup
+    init_db()
+    
+    # Validate configuration
+    errors = settings.validate()
+    if errors:
+        print("⚠️  Configuration warnings:")
+        for error in errors:
+            print(f"   - {error}")
+    else:
+        print("✅ Configuration validated")
+    
+    print(f"📊 Monthly API limit: {settings.MONTHLY_API_LIMIT} calls")
+    
+    yield  # Application runs here
+    
+    # Shutdown (cleanup if needed)
+
+
+# Initialize FastAPI app with lifespan
 app = FastAPI(
     title="Lead Generation Tool",
     description="Find local businesses using Google Places API",
-    version="1.0.0"
+    version="1.0.0",
+    lifespan=lifespan
 )
 
-# CORS middleware for frontend
+# CORS middleware - explicit origins for security
+# Add your production URL(s) to this list
+ALLOWED_ORIGINS = [
+    "http://localhost:8000",
+    "http://127.0.0.1:8000",
+    "http://localhost:3000",  # If running frontend separately
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # In production, specify your frontend URL
+    allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,
-    allow_methods=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE"],
     allow_headers=["*"],
 )
 
@@ -41,23 +73,6 @@ if frontend_path.exists():
     app.mount("/", StaticFiles(directory=str(frontend_path), html=True), name="frontend")
 
 
-@app.on_event("startup")
-def startup():
-    """Initialize database on startup."""
-    init_db()
-    
-    # Validate configuration
-    errors = settings.validate()
-    if errors:
-        print("⚠️  Configuration warnings:")
-        for error in errors:
-            print(f"   - {error}")
-    else:
-        print("✅ Configuration validated")
-    
-    print(f"📊 Monthly API limit: {settings.MONTHLY_API_LIMIT} calls")
-
-
 @app.get("/api/health")
 def health_check():
     """Health check endpoint."""
@@ -67,3 +82,4 @@ def health_check():
         "config_errors": errors,
         "api_key_configured": bool(settings.GOOGLE_MAPS_API_KEY)
     }
+

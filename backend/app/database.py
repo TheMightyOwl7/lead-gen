@@ -47,6 +47,39 @@ class Business(Base):
     search_id = Column(Integer)  # Which search found this
     created_at = Column(DateTime, default=datetime.utcnow)
     
+    def calculate_lead_score(self) -> int:
+        """
+        Calculate lead score based on business attributes.
+        Higher score = better lead for web dev/marketing services.
+        
+        Scoring:
+        - No website: +50 (hot lead!)
+        - Rating >= 4.0: +20 (quality business)
+        - Reviews >= 100: +15 (established business)
+        - Has phone: +15 (contactable)
+        
+        Max score: 100
+        """
+        score = 0
+        
+        # No website = hot lead for web development services
+        if not self.website:
+            score += 50
+        
+        # High rating = quality business worth approaching
+        if self.rating and self.rating >= 4.0:
+            score += 20
+        
+        # Established business with reviews
+        if self.review_count and self.review_count >= 100:
+            score += 15
+        
+        # Has phone = easier to contact
+        if self.phone:
+            score += 15
+        
+        return score
+    
     def to_dict(self):
         """Convert to dictionary for JSON response."""
         return {
@@ -61,6 +94,7 @@ class Business(Base):
             "business_types": json.loads(self.business_types) if self.business_types else [],
             "latitude": self.latitude,
             "longitude": self.longitude,
+            "lead_score": self.calculate_lead_score(),
             "created_at": self.created_at.isoformat() if self.created_at else None
         }
 
